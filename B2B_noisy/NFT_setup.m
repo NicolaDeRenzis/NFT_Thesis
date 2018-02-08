@@ -6,7 +6,7 @@ robolog off
 Fs = 1e12;
 Fc = 193.4e12;
 
-osnr_cycle = 100:-10:0;
+osnr_cycle = 100:-10:10;
 realization = 1e2;
 
 
