@@ -1,0 +1,108 @@
+19/01/2018
+Try to implement fast Darboux transform for INFT from Delft University.
+
+Try different definitions of error (try only the first conserved quantity instead of all 3 of them)
+
+Fixed problem with Matlab and how to overload Built-in Matlab functions (folder named @[typeOfClass] not in the path will be called first than the built-in one. In there there must be your function and in every other folder depending on which type of input the function can run)
+
+So far tried LP,AL,FW,CN which are search methods: possible improvements of these: search method, error stopping criteria, especially the definition of error (Hamiltonina seems to create problems. Momentum is always 0 since they are real and symmetric signals).
+Remembr that for Discrete spectrum NFT LP maybe does not work due to the exponential that becames real with imaginary eigenvalues.
+
+Problems with understanding paper on Fast INFT Darboux Delft.
+
+23/01/2018
+Found MSc Thesis dealing with the paper on Fast INFT but still problems with nomenclature.
+psuedocode incomplete and does not make sense so far.
+
+25/01/2018
+Read papers on Daurboux transform from Simone and implemented alg 2 for only discrete spectrum pure solitons creations.
+
+TO DO:
+- check analytical solution for sech that should have only discrete eigenvalues and no continuous spectrum
+- check Daurboux alg2 with energy conservation (compare discrete and continuous spectrum with analitycal pulse) and use Simone's formula for time shifting
+- check Newton-Raphson method with path saving
+
+darboux alg2 seems to have problems, or it the analytical expression for the discrete spectrum that gives
+funny results. Double-check amplitudes against values found with numerical NFT
+
+26/01/2018
+Checking newton-raphson method with improvement. Does not save the correct path
+Now it does. Performances first round:
+q(t) = Asech(t) for t in [T1,T2] with T1 = -T2 = -7, and integer A; Forward method ('FW'), N = 2^9 points
+alfa = 0.5;
+search area: [-5 +5] x i*[-2 15]
+  A  | visited points | eigenvalues |   proximity radius
+     |                |             |
+  8  |       2574     |      7      |  1.3*abs(DeltaLambda)	// the stopping criteria was an upper bound number of iterations
+  8  |       2647     |      8      |          0		// error thr. reached
+  8  |       1683     |      8      |         0.1		// error thr. reached
+
+Still idk if the spectral amplitudes are correct because I cannot find analytical expression to compare with
+
+28/01/2018
+Second round: same set up as first, changing only alfa = 1
+
+  A  | visited points | eigenvalues |   proximity radius
+     |                |             |
+  8  |       2447     |     8/8     |  	       0	        // error thr. reached
+  8  |       1560     |     7/8     |          0.1		// the stopping criteria was an upper bound number of iterations
+  8  |       1176     |     8/8     |          0.1		// the stopping criteria was an upper bound number of iterations
+  8  |       1097     |     7/8     |          0.2
+
+A*rect with few eig does not really make a difference
+
+  A  | visited points | eigenvalues |   proximity radius
+     |                |             |
+  2  |       45       |     1/1     |  	       0.2	        // error thr. reached
+  2  |       84       |     1/1     |          0		 
+  2  |       55       |     1/1     |          0		
+  6  |       96       |     2/2     |          0
+  6  |       46       |     2/2     |          0
+  6  |       62       |     2/2     |          0.2
+
+29/01/2018
+validation of NFT FW
+A*sech(t) the same as before
+  A  | visited points | eigenvalues |   proximity radius
+     |                |             |
+  3  |       680      |     3/3     |  	       0.2	        // error thr. reached
+  3  |       585      |     3/3     |          0.2		
+  3  |       109      |     3/3     |          0		// weird. particular instance
+  8  |       1097     |     7/8     |          0.2
+
+Another idea: since the eigs starts appearing from the zero of the complex plane, unbalance the distribution of random sampling from uniform or gaussian or sth that is more likely to draw from near the center of the plane.
+
+Moving to Darboux: there may be a problem with the formula relating q(T,Z) = f(Qq,lambda) discrete spectrum only: it might miss a pi/2. Checking both with NFT algorithm and then back (mind!! use only integer amplitudes, changeonly phase shift, otherwise the signal will have also continuous spectrum) and also with the equation with the problem.
+
+31/01/2018
+Still struggling with Darboux. Now it seems like both mine and Simone's dont work. The results are the same form ours algorithm not matching the theoretical results. Checking random adjustment from the theoretical equation givin q(t) from eigs and spectral amplitudes.
+
++angle + pi/2	-> real part adjusted, not imaginary (both algorithms)
++angle		-> both real and imag part are wrong at the same way
++angle - pi/2	-> imag part adjusted, not real
+-2*real-angle-pi/2 -> CORRECT
+
+Still working oin multisolitons stuff
+
+starting to notice some difference when it comes to small A or bigger A as amplitudes of the sech
+
+01/02/2018
+
+meeting: to do: 
+set up connection b2b for testing noise and inft and nft algorithms. Use Simon'es plus mine inside robhocameleon
+
+N=1
+ver1 0.030840 s
+ver2 0.029 s
+N=4
+ver1 0.088549 s
+ver2 
+
+02/02/2018
+Implemented ver2 Darboux in Robochameleon. Committed file
+Done algorithm comparison in time and precision. ver 2 is better.
+
+05/02/2018
+Playing with adding noise to the eigenvalues and see what happens to the waveform through INFT_Darboux
+
+Git-day: fixed a coupled of things rebase, merging, conflict solver, upgraded INFT with also B parameter. Testing needed
