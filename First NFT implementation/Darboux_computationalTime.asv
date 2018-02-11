@@ -30,15 +30,14 @@ switch testType
         
         %K = 2.^(10:2:18); % length of signals
         K = 30:5:100; % length of signals
-        TIME_AVERAGE = 2000;
+        TIME_AVERAGE = 1000;
         %K = 2^10;
         for method_cycle = 1:length(method)
             for k=1:length(K)
+                disp(length(K)-k+,'yt')
                 nPoints = K(k);
                 Rs = Fs/nPoints;
                 for n=1:length(discreteEigenvalues_TOT)
-                    
-                    fprintf('%d %d\n',length(K)-k,length(discreteEigenvalues_TOT)-n)
                     
                     discreteEigenvalues = discreteEigenvalues_TOT(1:n);
                     discreteSpectrum = discreteSpectrum_TOT(1:n);
@@ -58,7 +57,7 @@ switch testType
                     
                     % Compute waveform with Darboux transform
                     inft = DiscreteINFT_v1(param.INFT);
-                    %pause(0.1); % relaxation time
+                    pause(0.1); % relaxation time
                     tic
                     for i=1:TIME_AVERAGE
                         sigDarb = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
