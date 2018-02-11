@@ -72,7 +72,7 @@ switch testType
         end
         save time_average2.mat time
         
-        % compare
+        %% compare
         close all
         figure(1)
         hold on
@@ -103,12 +103,13 @@ switch testType
         for i=1:length(K)
             plot(1:length(discreteEigenvalues_TOT),squeeze(time(1,i,:))./squeeze(time(2,i,:)),'-o')
             %s{i} = sprintf('samples = %s^{%d}','2',log2(K(i)));
-            s{i} = sprintf('samples = %d',K(i));
+            s{i} = sprintf('%d',K(i));
         end
         plot(0:1e-1:length(discreteEigenvalues_TOT),ones(1,length(0:1e-1:length(discreteEigenvalues_TOT))),'k--')
         hold off
         grid on
         title('Computational time ratio Alg1 / Alg2')
+        ylim([0 max(max(time(1,:,:)./time(2,:,:)))+0.5])
         xlabel('Number of discrete eigenvalues')
         ylabel('Computational time ratio')
         legend(s)
@@ -279,6 +280,5 @@ switch testType
         xlabel('nPoints')
         ylabel('MSE')
         grid on
-        
         
 end % end switch
