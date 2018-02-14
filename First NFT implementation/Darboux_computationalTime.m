@@ -542,7 +542,7 @@ switch testType
                         psi = linsolve(A_tot,b_tot);
                         x(tau) = -2.*sum(b_tot(N+1:end).*psi(N+1:end))*1i; % THIS i IS NOT SURE, BUT IT WORKS
                     end
-                    % normalization of the resulting signal
+                    % denormalization of the resulting signal
                     x = x.*sqrt(Pn);
                     x(isnan(real(x))) = 1i.*imag(x(isnan(real(x))));
                     x(isnan(imag(x))) = real(x(isnan(imag(x))));
@@ -575,7 +575,7 @@ switch testType
                     x_int = [x_tmp(2:2:end),x_tmp(end)];
                     sigDarb_v2_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
 
-                    error_v1(n,i) = mean(abs(get(sig) - get(sigDarb_v1)).^2);
+                    error_v1(n,i) = mean(abs(get(sig) - get(sigDarb_v1)).^2); % MSE
                     error_v2(n,i) = mean(abs(get(sig) - get(sigDarb_v2)).^2);
                     error_v1_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v1_inter)).^2);
                     error_v2_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v2_inter)).^2);
@@ -585,17 +585,24 @@ switch testType
                     
                 end
             end
-            error_v1_average(average,:,:) = error_v1;
+            error_v1_average(average,:,:) = error_v1; 
             error_v2_average(average,:,:) = error_v2;
             error_v1_average_inter(average,:,:) = error_v1_inter;
             error_v2_average_inter(average,:,:) = error_v2_inter;
             error_v12_average(average,:,:) = error_v12;
         end
-        error_v1 = squeeze(mean(error_v1_average,1));
+        error_v1 = squeeze(mean(error_v1_average,1)); % E[MSE]
         error_v2 = squeeze(mean(error_v2_average,1));
         error_v12 = squeeze(mean(error_v12_average,1));
         error_v1_inter = squeeze(mean(error_v1_average_inter,1));
         error_v2_inter = squeeze(mean(error_v2_average_inter,1));
+        error_v1_var = squeeze(var(error_v1_average,1)); % Var[MSE]
+        error_v2_var = squeeze(var(error_v2_average,1));
+        error_v12_var = squeeze(var(error_v12_average,1));
+        error_v1_inter_var = squeeze(var(error_v1_average_inter,1));
+        error_v2_inter_var = squeeze(var(error_v2_average_inter,1));
+        
+        save workspace_errors_potato.mat
         
         %% figures
         figure(1)
@@ -609,7 +616,7 @@ switch testType
         title('Error from theoretical results')
         legend('Ver 1','Ver 2')
         xlabel('samples')
-        ylabel('MSE')
+        ylabel('E[MSE]')
         grid on
         
         figure(2)
@@ -623,7 +630,7 @@ switch testType
         title('Error from theoretical results - Interpolated')
         legend('Ver 1','Ver 2')
         xlabel('samples')
-        ylabel('MSE')
+        ylabel('E[MSE]')
         grid on
         
         figure(3)
@@ -631,16 +638,34 @@ switch testType
         title('Ver 1 VS Ver 2 - Number of eigenvalues')
         legend(num2cell(num2str((1:N_tot).')))
         xlabel('samples')
-        ylabel('MSE')
+        ylabel('E[MSE]')
         grid on
         
         figure(4)
-        semilogy(Nss,error_v1./error_v2,'-o','Markersize',1)
-        title('Ver 1 VS Ver 2 - Error ratio')
-        legend(num2cell(num2str((1:N_tot).')))
+        c=1;
+        for i=1:2:N_tot
+            h=plot(Nss(1:2:end),error_v2(i,1:2:end)./error_v2_inter(i,1:2:end),'-o','Markersize',1);
+            hold on
+            plot(Nss(2:2:end),error_v2(i,2:2:end)./error_v2_inter(i,2:2:end),'Color',h.Color,'LineStyle','--','Marker','o','Markersize',1)
+            s{c} = sprintf('K even, N = %d',i);
+            c=c+1;
+            s{c} = sprintf('K odd, N = %d',i);
+            c=c+1;
+        end
+        hold off
+        title('Not Interp VS Interp - Error ratio')
+        legend(s)
         xlabel('samples')
-        ylabel('MSE ratio')
+        ylabel('E[MSE] ratio')
         grid on
+        
+%         figure(5)
+%         plot(Nss,error_v1_inter./error_v2_inter,'-o','Markersize',1)
+%         title('Ver 1 VS Ver 2 - Error ratio')
+%         legend(num2cell(num2str((1:N_tot).')))
+%         xlabel('samples')
+%         ylabel('E[MSE] ratio')
+%         grid on
         
         % reset robolog
         setpref('roboLog', 'logLevel', 5)
