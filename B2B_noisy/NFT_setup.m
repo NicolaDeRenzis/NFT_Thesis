@@ -14,16 +14,16 @@ realization = 1e2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
-discreteEigenvalues = [0 + 0.5i];
-discreteSpectrum = [-1i];
+discreteEigenvalues = [0 + 0.5i 1.5*1i];
+discreteSpectrum = [-1i 1i];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
 
-nPoints = 2^12; % minimum 2048
+nPoints = 2^10; % minimum 2048smart
 Rs = Fs/nPoints;
 
 %INFT parameters
-param.INFT.Tn        = 0.15/Rs;                              %[km]
+param.INFT.Tn        = 0.07/Rs;                              %[km]
 param.INFT.gamma     = 1.27;                             %[/W/km]
 param.INFT.D         = 17;                            %[ps/(nm km)]
 param.INFT.method    = 'darboux_simplified';
@@ -38,7 +38,7 @@ param.NFT.D         = param.INFT.D;                               %[ps/(nm km)]
 param.NFT.nPoints   = nPoints;
 param.NFT.methodDiscreteSpectrum = 'TrapezFB';
 param.NFT.tolUniqueEigenvalue = 0.05; % sensibility to locating the same eigenvalue
-param.NFT.tolAllEigenvaluesFound = 0.3; % energy threshold to fulfill for terminating the eigs search
+param.NFT.tolAllEigenvaluesFound = 0.1; % energy threshold to fulfill for terminating the eigs search
 param.NFT.computeDiscreteSpectrumEnabled = 1;
 param.NFT.computeContinuousSpectrumEnabled = 1;
 param.NFT.complexPlaneSearchArea = 3 * (max(0.1, max(real(discreteEigenvalues))) + ...
@@ -47,8 +47,8 @@ param.NFT.mexEnabled = 1;
 param.NFT.returnNFTParameterB = param.INFT.setNFTParameterB;
 
 % Let's get the normalization parameters that we need to build the reference signal
-inft = DiscreteINFT_v1(param.INFT);
-inft.normalizationParameters(const.c/Fc);
+%inft = DiscreteINFT_v1(param.INFT);
+%inft.normalizationParameters(const.c/Fc);
 
 % Compute waveform with Darboux transform
 inft = DiscreteINFT_v1(param.INFT);
@@ -78,7 +78,7 @@ for noise_index = 1:numel(osnr_cycle)
         E_cont(n) = E.Ec;
         E_disc(n) = E.Ed;
         t = genTimeAxisSig(sigNoise,'central');
-        E_sigNoise(n) = trapz(t,abs(get(sigNoise)).^2);
+        E_sigNoise(n) = trapz(t./nft_out.Tn,abs(get(sigNoise)./sqrt(nft_out.Pn)).^2);
         tmp{noise_index,n} = sigNoise;
     end
     store_sigNoise{noise_index} = tmp{noise_index,1};
@@ -114,23 +114,50 @@ end
 %% Display the results
 %plotNFTConstellation_v1(egDb, dsDb , 'refEigenvalues', discreteEigenvalues, 'refSpectrum', discreteSpectrum);
 
-figure;
+figure(100);
 show_osnr_level = 1;
 t = genTimeAxisSig(store_sigNoise{show_osnr_level},'central');
 subplot(2,2,[1,3])
-plot(t,abs(get(store_sigNoise{show_osnr_level})).^2,t,abs(get(sigDarb)).^2)
-xlabel('t')
+plot(t/1e-12,abs(get(store_sigNoise{show_osnr_level})).^2,t/1e-12,abs(get(sigDarb)).^2)
+grid on
+xlabel('t [ps]')
 ylabel('|x(t)|^2')
 subplot(2,2,[2,4])
-plot(t,angle(get(store_sigNoise{show_osnr_level}))./pi,t,angle(get(sigDarb))./pi)
-xlabel('t')
+plot(t/1e-12,angle(get(store_sigNoise{show_osnr_level}))./pi,t/1e-12,angle(get(sigDarb))./pi)
+grid on
+xlabel('t [ps]')
 ylabel('phase/\pi')
 
-figure;
+figure(101);
 plot(osnr_cycle,E_cont_tot,'-o',osnr_cycle,E_disc_tot,'-o',...
-    osnr_cycle,E_cont_tot+E_disc_tot,'k--o',osnr_cycle,E_sig_tot,'k-o');
+    osnr_cycle,E_cont_tot+E_disc_tot,'k--o',osnr_cycle,E_sig_tot,'k-x');
 xlabel('OSNR [dB]')
 ylabel('Signal Energy [J]')
 legend('Continuous spectrum','Discrete Spectrum',...
-    'Total NFT enegry','Total signal energy','Location','Northwest')
+    'Total NFT enegry','Total signal energy','Location','Northeast')
+title('Energy')
+grid on
+
+figure(102)
+for i=1:numel(discreteEigenvalues)
+    errorbar(osnr_cycle,abs(mean_errorEigs(:,i)),sqrt(abs(var_errorEigs(:,i))))
+    hold on
+end
+hold off
+title(['Averaged over ',num2str(realization),' iterations'] )
+ylabel(' $| E [ \lambda - \hat{\lambda} ] |$','Interpreter','Latex')
+xlabel('OSNR [dB]')
+grid on
+
+figure(103)
+for i=1:numel(discreteEigenvalues)
+    errorbar(osnr_cycle,abs(mean_errorAmpl(:,i)),sqrt(abs(var_errorAmpl(:,i))))
+    hold on
+end
+hold off
+title(['Averaged over ',num2str(realization),' iterations'] )
+ylabel(' $| E [ Q_d(\lambda) - \hat{Q}_d(\hat{\lambda}) ] |$','Interpreter','Latex')
+xlabel('OSNR [dB]')
+grid on
+
 %}
