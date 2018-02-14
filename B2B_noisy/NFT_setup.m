@@ -15,7 +15,7 @@ realization = 1e2;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
 discreteEigenvalues = [0 + 0.5i];
-discreteSpectrum = [1i];
+discreteSpectrum = [-1i];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
 
