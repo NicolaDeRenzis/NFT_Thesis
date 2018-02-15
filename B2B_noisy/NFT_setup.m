@@ -14,7 +14,7 @@ realization = 1e2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
-discreteEigenvalues = [0 + 0.5i 1.5*1i];
+discreteEigenvalues = [0.5i 1.5*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
 discreteSpectrum = [-1i 1i];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
@@ -41,7 +41,7 @@ param.NFT.tolUniqueEigenvalue = 0.05; % sensibility to locating the same eigenva
 param.NFT.tolAllEigenvaluesFound = 0.1; % energy threshold to fulfill for terminating the eigs search
 param.NFT.computeDiscreteSpectrumEnabled = 1;
 param.NFT.computeContinuousSpectrumEnabled = 1;
-param.NFT.complexPlaneSearchArea = 3 * (max(0.1, max(real(discreteEigenvalues))) + ...
+param.NFT.complexPlaneSearchArea = 3 * (max(1, max(real(discreteEigenvalues))) + ...
     1i*max(imag(discreteEigenvalues)));
 param.NFT.mexEnabled = 1;
 param.NFT.returnNFTParameterB = param.INFT.setNFTParameterB;
@@ -55,31 +55,66 @@ inft = DiscreteINFT_v1(param.INFT);
 sigDarb = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
 
 nft_out = NFT_v8(param.NFT);
+timeout = 10;
 
 for noise_index = 1:numel(osnr_cycle)
     
     %OSNR parameters
     param.OSNR.OSNR = osnr_cycle(noise_index);               % [dB]
     osnr = OSNR_v1(param.OSNR);
+    flag_start = 1;
+    flag = 0;
     
-    parfor n=1:realization % realizations
+    for n=1:realization % realizations
         
         % Add noise to the generated signal
-        sigNoise = osnr.traverse(sigDarb);
+        while flag_start || flag
+            flag_start = 0;
+            sigNoise = osnr.traverse(sigDarb);
+            
+            counter=0;
+            toten=0;
+            while (toten<0.8 || toten>1.001) && counter<timeout
+                % Compute NFT until all eignevalues are found
+                nft_out.traverse(sigNoise);
+                E = nft_out.results.E;
+                
+                E_cont(n) = E.Ec;
+                E_disc(n) = E.Ed;
+                t = genTimeAxisSig(sigNoise,'central');
+                E_sigNoise(n) = trapz(t./nft_out.Tn,abs(get(sigNoise)./sqrt(nft_out.Pn)).^2);
+                tmp{noise_index,n} = sigNoise;
+                
+                toten = (E.Ec+E.Ed)./E_sigNoise(n);
+                check=nft_out.discreteEigenvalues();
+                if numel(discreteEigenvalues)>1 % only if there are more than 1 eigenvalue
+                    if (~any(gradient(check)) || counter+1>timeout) && ~(toten<0.8 || toten>1.001) % check if toten condition is already not fulfilled
+                        flag=1;
+                        counter=1e16;
+                    else
+                        counter = counter+1;
+                        flag=0;
+                    end
+                end
+            end
+            
+        end
+        flag_start = 1;
         
-        % Compute NFT until all eignevalues are found
-        nft_out.traverse(sigNoise);
-        E = nft_out.results.E;
+        disp([numel(osnr_cycle)-noise_index,realization-n,counter-1])
+        % order reults
+        tmp_eigs = nft_out.discreteEigenvalues();
+        tmp_amp = nft_out.discreteSpectrum();
+        [~,index] = sort(real(tmp_eigs));
+        tmp_eigs = tmp_eigs(index);
+        tmp_amp = tmp_amp(index);
+        [~,index] = sort(imag(tmp_eigs));
+        tmp_eigs = tmp_eigs(index);
+        tmp_amp = tmp_amp(index);
         
-        robolog('Discrete eigenvalues OUTPUT signal:');
-        egDb(n,:) = nft_out.discreteEigenvalues(); %egDb
-        robolog('Discrete spectrum');
-        dsDb(n,:) = nft_out.discreteSpectrum(); %dsDb
-        E_cont(n) = E.Ec;
-        E_disc(n) = E.Ed;
-        t = genTimeAxisSig(sigNoise,'central');
-        E_sigNoise(n) = trapz(t./nft_out.Tn,abs(get(sigNoise)./sqrt(nft_out.Pn)).^2);
-        tmp{noise_index,n} = sigNoise;
+        egDb(n,:) = tmp_eigs; %egDb
+        dsDb(n,:) = tmp_amp; %dsDb
+        
     end
     store_sigNoise{noise_index} = tmp{noise_index,1};
     % check how energy flows from discrete to continuous spectrum
@@ -88,14 +123,22 @@ for noise_index = 1:numel(osnr_cycle)
     E_sig_tot(noise_index) = mean(E_sigNoise);
     
     figure(1)
-    plot(real(egDb),imag(egDb),'b.',real(discreteEigenvalues),imag(discreteEigenvalues),'r.')
+    for i=1:numel(discreteEigenvalues)
+        plot(real(egDb(:,i)),imag(egDb(:,i)),'.',real(discreteEigenvalues(i)),imag(discreteEigenvalues(i)),'ko')
+        hold on
+    end
+    hold off
     grid on
     xlabel('Real')
     ylabel('Imag')
     legend('Noisy eigs','Reference')
     
     figure(2)
-    plot(real(dsDb),imag(dsDb),'b.',real(discreteSpectrum),imag(discreteSpectrum),'r.')
+    for i=1:numel(discreteEigenvalues)
+        plot(real(dsDb(:,i)),imag(dsDb(:,i)),'.',real(discreteSpectrum(i)),imag(discreteSpectrum(i)),'ko')
+        hold on
+    end
+    hold off
     grid on
     xlabel('Real')
     ylabel('Imag')
@@ -115,7 +158,7 @@ end
 %plotNFTConstellation_v1(egDb, dsDb , 'refEigenvalues', discreteEigenvalues, 'refSpectrum', discreteSpectrum);
 
 figure(100);
-show_osnr_level = 1;
+show_osnr_level = 5;
 t = genTimeAxisSig(store_sigNoise{show_osnr_level},'central');
 subplot(2,2,[1,3])
 plot(t/1e-12,abs(get(store_sigNoise{show_osnr_level})).^2,t/1e-12,abs(get(sigDarb)).^2)

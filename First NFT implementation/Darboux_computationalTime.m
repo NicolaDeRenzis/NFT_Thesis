@@ -337,7 +337,7 @@ switch testType
             %discreteSpectrum_TOT = -1i;
             N_tot = min(N_max_eigs,numel(discreteEigenvalues_TOT));
             
-            %error_v1 = zeros(N_tot,length(Nss));
+            error_v1 = zeros(N_tot,length(Nss));
             error_v2 = zeros(N_tot,length(Nss));
             error_v12 = zeros(N_tot,length(Nss));
             error_v1_inter = zeros(N_tot,length(Nss));
