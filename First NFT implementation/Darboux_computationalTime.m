@@ -8,7 +8,7 @@ close all
 Fs = 1e12;
 Fc = 193.4e12;
 
-testType = 4;
+testType = 1;
 % Test 1: Compare computational time. Generate a N-Solition from a given spectrum. A N-soliton has N eigenvalue on the imaginary axis.
 % Test 2: Compare precision darboux VS darboux_simplified. Generate a N-Solition from a given spectrum. A N-soliton has N eigenvalue on the imaginary axis.
 % Test 3: Compare results of both algorithms against theoretical results
@@ -31,17 +31,19 @@ switch testType
         discreteSpectrum_TOT = rand(1,numel(discreteEigenvalues_TOT))*500-25 ...
             + 1i.*(rand(1,numel(discreteEigenvalues_TOT))*500-30);
         
+        N_eigs = min(6,length(discreteEigenvalues_TOT));
+        
         %K = 2.^(10:2:18); % length of signals
-        K = 30:5:100; % length of signals
+        K = 40:5:150; % length of signals
         TIME_AVERAGE = 2000;
         %K = 2^10;
-        for method_cycle = 1:length(method)
+        for method_cycle = 2:length(method)
             for k=1:length(K)
                 nPoints = K(k);
                 Rs = Fs/nPoints;
-                for n=1:length(discreteEigenvalues_TOT)
+                for n=1:N_eigs
                     
-                    fprintf('%d %d\n',length(K)-k,length(discreteEigenvalues_TOT)-n)
+                    fprintf('%d %d\n',length(K)-k,N_eigs-n)
                     
                     discreteEigenvalues = discreteEigenvalues_TOT(1:n);
                     discreteSpectrum = discreteSpectrum_TOT(1:n);
@@ -55,31 +57,43 @@ switch testType
                     param.INFT.nPoints   = nPoints;
                     param.INFT.setNFTParameterB = 0;
                     
-                    % Let's get the normalization parameters that we need to build the reference signal
                     inft = DiscreteINFT_v1(param.INFT);
-                    inft.normalizationParameters(const.c/Fc);
                     
                     % Compute waveform with Darboux transform
-                    inft = DiscreteINFT_v1(param.INFT);
-                    %pause(0.1); % relaxation time
+                    sigDarb = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
+                    x = get(sigDarb);
+                    pause(0.05); % relaxation time
+                    tic
+                    for i=1:TIME_AVERAGE
+                        sigDarb = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
+                        x_int = (x+[x(2:end);x(end)])./2;
+                    end
+                    tmp = toc;
+                    time(method_cycle,k,n)=tmp/TIME_AVERAGE;
+                    %{
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    time(2,k,n)=tmp/TIME_AVERAGE;
+                    
+                    pause(0.05); % relaxation time
                     tic
                     for i=1:TIME_AVERAGE
                         sigDarb = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
                     end
                     tmp = toc;
-                    time(method_cycle,k,n)=tmp/TIME_AVERAGE;
-                    
+                    time(1,k,n)=tmp/TIME_AVERAGE;
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    %}
                     clear param inft discreteEigenvalues discreteSpectrum
                 end
             end
         end
-        save time_average2.mat time
+        %save time_average2.mat time
         
         %% compare
         close all
         figure(1)
         hold on
-        for i=1:length(discreteEigenvalues_TOT)
+        for i=1:N_eigs
             plot(K,squeeze(time(1,:,i)),'b-o',K,squeeze(time(2,:,i)),'r-o')
         end
         hold off
@@ -92,7 +106,7 @@ switch testType
         figure(2)
         hold on
         for i=1:length(K)
-            plot(1:length(discreteEigenvalues_TOT),squeeze(time(1,i,:)),'b-o',1:length(discreteEigenvalues_TOT),squeeze(time(2,i,:)),'r-o')
+            plot(1:N_eigs,squeeze(time(1,i,:)),'b-o',1:N_eigs,squeeze(time(2,i,:)),'r-o')
         end
         hold off
         grid on
@@ -104,11 +118,11 @@ switch testType
         figure(3)
         hold on
         for i=1:length(K)
-            plot(1:length(discreteEigenvalues_TOT),squeeze(time(1,i,:))./squeeze(time(2,i,:)),'-o')
+            plot(1:N_eigs,squeeze(time(1,i,:))./squeeze(time(2,i,:)),'-o')
             %s{i} = sprintf('samples = %s^{%d}','2',log2(K(i)));
             s{i} = sprintf('%d',K(i));
         end
-        plot(0:1e-1:length(discreteEigenvalues_TOT),ones(1,length(0:1e-1:length(discreteEigenvalues_TOT))),'k--')
+        plot(0:1e-1:N_eigs,ones(1,length(0:1e-1:N_eigs)),'k--')
         hold off
         grid on
         title('Computational time ratio Alg1 / Alg2')
@@ -117,7 +131,24 @@ switch testType
         ylabel('Computational time ratio')
         legend(s)
         
-        
+%         figure(4)
+%         clear s
+%         hold on
+%         for i=1:N_eigs
+%             plot(K,squeeze(time(1,:,i))./squeeze(time(2,:,i)),'-o')
+%             %s{i} = sprintf('samples = %s^{%d}','2',log2(K(i)));
+%             s{i} = sprintf('N = %d',i);
+%         end
+%         plot(K,ones(1,length(K)),'k--')
+%         hold off
+%         grid on
+%         title('Computational time ratio Alg2 / Alg2_interp')
+%         ylim([0.8 max(max(time(1,:,:)./time(2,:,:)))+0.1])
+%         xlabel('Number of samples')
+%         ylabel('Computational time ratio')
+%         legend(s)
+%         
+        setpref('roboLog', 'logLevel', 5)
     case 2
         %% Test 2: Generate a N-Solition from a given spectrum
         % A N-soliton has N eigenvalue on the imaginary axis.
@@ -284,169 +315,6 @@ switch testType
         
         
     case 4
-        %         %% Test 4: Compare results of both algorithms against theoretical results
-        %         % with N eignevalues (may take long)
-        %         warning off
-        %         setpref('roboLog', 'logLevel', 1)
-        %
-        %         N_average = 100;
-        %         N_max_eigs = 6;
-        %         samples = 40:1:150;
-        %
-        %         for average=1:N_average % average several simulations
-        %             % Set the spectrum here
-        %             discreteEigenvalues_TOT = rand(1,50/2)*5-5/2 + 1i.*(rand(1,50/2)*12+0.1);
-        %             discreteSpectrum_TOT = rand(1,50/2)*500-25 + 1i.*(rand(1,50/2)*500-30);
-        %             N_tot = min(N_max_eigs,numel(discreteEigenvalues_TOT));
-        %
-        %             ratio_Tn = 0.3;
-        %             T1 = -20;
-        %             T2 = -T1;
-        %             samples = 40:1:200;
-        %             K = (samples-1)./((T2-T1)*ratio_Tn);
-        %
-        %             error_v1 = zeros(N_tot,length(K));
-        %             error_v2 = zeros(N_tot,length(K));
-        %             error_v12 = zeros(N_tot,length(K));
-        %             for n=1:N_tot
-        %                 disp([N_average-average,N_tot-n])
-        %                 discreteEigenvalues = discreteEigenvalues_TOT(1:n);
-        %                 discreteSpectrum = discreteSpectrum_TOT(1:n);
-        %
-        %                 N = numel(discreteEigenvalues);
-        %                 c = discreteSpectrum; % name only
-        %                 zeta = discreteEigenvalues; % name only
-        %
-        %                 for i=1:length(K)
-        %                     nPoints = K(i);
-        %                     Rs = Fs/nPoints;
-        %
-        %                     %INFT parameters
-        %                     param.INFT.Tn        = ratio_Tn/Rs;                  %[km]
-        %                     param.INFT.gamma     = 1.27;                             %[/W/km]
-        %                     param.INFT.D         = 17;                            %[ps/(nm km)]
-        %                     param.INFT.method    = 'darboux';
-        %                     param.INFT.Fc        = Fc;
-        %                     param.INFT.setNFTParameterB = 0;
-        %
-        %                     % normalization of the resulting signal
-        %                     Ld_SI = param.INFT.D * 1e3;
-        %                     gamma_SI = param.INFT.gamma / 1e3;
-        %                     D_SI = param.INFT.D / 1e6;
-        %                     beta2_SI = (D_SI*(const.c/Fc)^2)/(2*pi*const.c);
-        %                     Pn = abs(beta2_SI)/(gamma_SI*param.INFT.Tn^2);
-        %
-        %                     % THEORY
-        %                     inft = DiscreteINFT_v1(param.INFT);
-        %                     inft.normalizationParameters(const.c/Fc);
-        %                     t = (T1:1/Fs/inft.Tn:T2)*inft.Tn;
-        %                     dt = t(2)-t(1);
-        %                     lambdas = @(r,z) sqrt(c(r)).*exp(1i.*zeta(r).*z); % index (j/k, time)
-        %                     a = @(x,y,z) lambdas(x,z)*conj(lambdas(y,z))/(zeta(x)-conj(zeta(y))); % index (j,k,time)
-        %                     b = @(x,y,z) conj(lambdas(x,z))*lambdas(y,z)/(conj(zeta(x))-zeta(y));
-        %                     x = zeros(1,length(t));
-        %                     for tau=1:length(t)
-        %                         %disp(length(t)-tau);
-        %                         t_curr = t(tau)/inft.Tn - dt/2/inft.Tn;
-        %                         A_tilde = zeros(N,N);
-        %                         B_tilde = zeros(N,N);
-        %                         for j=1:N
-        %                             %cj = c(j);
-        %                             %zetaj = zeta(j);
-        %                             for k=1:N
-        %                                 A_tilde(j,k) = a(j,k,t_curr);
-        %                                 B_tilde(j,k) = -b(j,k,t_curr);
-        %                                 % A_tilde(j,k) = sqrt(cj)*conj(sqrt(c(k)))/...
-        %                                 %               (zetaj-conj(zeta(k)))*...
-        %                                 %               exp(1i*(zetaj-conj(zeta(k)))*t_curr);
-        %                                 % B_tilde(j,k) = -sqrt(c(k))*conj(sqrt(cj))/...
-        %                                 %               (-zeta(k)+conj(zetaj))*...
-        %                                 %               exp(1i*(-zeta(k)+conj(zetaj))*t_curr);
-        %                             end
-        %                         end
-        %                         A_tot = [eye(N),A_tilde;B_tilde,eye(N)];
-        %                         b_tot = [zeros(1,N),conj(lambdas(1:N,t_curr))].';
-        %                         psi = linsolve(A_tot,b_tot);
-        %                         x(tau) = -2.*sum(b_tot(N+1:end).*psi(N+1:end))*1i;
-        %                     end
-        %                     % normalization of the resulting signal
-        %                     x = x.*sqrt(Pn);
-        %                     x(isnan(real(x))) = 1i.*imag(x(isnan(real(x))));
-        %                     x(isnan(imag(x))) = real(x(isnan(imag(x))));
-        %                     x(isnan(real(x))) = 1i.*imag(x(isnan(real(x))));
-        %
-        %                     sig = signal_interface(x, struct('Rs', inf, 'Fs', Fs, 'Fc', Fc));
-        %                     param.INFT.nPoints = sig.L;
-        %                     lengths(i) = sig.L;
-        %
-        %                     % ALGORITHM 1
-        %                     % Let's get the normalization parameters that we need to build the reference signal
-        %                     inft = DiscreteINFT_v1(param.INFT);
-        %                     inft.normalizationParameters(const.c/Fc);
-        %                     % Compute waveform with Darboux transform
-        %                     inft = DiscreteINFT_v1(param.INFT);
-        %                     sigDarb_v1 = inft.traverse(discreteEigenvalues, discreteSpectrum, Fs/inft.nPoints);
-        %
-        %                     % ALGORITHM 2
-        %                     param.INFT.method = 'darboux_simplified';
-        %                     % Let's get the normalization parameters that we need to build the reference signal
-        %                     inft = DiscreteINFT_v1(param.INFT);
-        %                     inft.normalizationParameters(const.c/Fc);
-        %                     % Compute waveform with Darboux transform
-        %                     inft = DiscreteINFT_v1(param.INFT);
-        %                     sigDarb_v2 = inft.traverse(discreteEigenvalues, discreteSpectrum, Fs/inft.nPoints);
-        %
-        %                     error_v1(n,i) = mean(abs(get(sig) - get(sigDarb_v1)).^2);
-        %                     error_v2(n,i) = mean(abs(get(sig) - get(sigDarb_v2)).^2);
-        %                     error_v12(n,i) = mean(abs(get(sigDarb_v1) - get(sigDarb_v2)).^2);
-        %                     %figure;plot(t,real(get(sigDarb_v1)),'g',t,imag(get(sigDarb_v1)),'g--',t,real(get(sigDarb_v2)),'b',t,imag(get(sigDarb_v2)),'b--',t,real(get(sig)),'r',t,imag(get(sig)),'r--')
-        %                     clear param inft
-        %
-        %                 end
-        %             end
-        %             error_v1_average(average,:,:) = error_v1;
-        %             error_v2_average(average,:,:) = error_v2;
-        %             error_v12_average(average,:,:) = error_v12;
-        %         end
-        %         error_v1 = squeeze(mean(error_v1_average,1));
-        %         error_v2 = squeeze(mean(error_v2_average,1));
-        %         error_v12 = squeeze(mean(error_v12_average,1));
-        %
-        %         %% figures
-        %         figure(1)
-        %         cmap = colormap(parula(N_tot+2));
-        %         for i=1:N_tot
-        %             semilogy(lengths,error_v1(i,:),'Color',cmap(i,:),'Marker','o','Markersize',1)
-        %             hold on
-        %             semilogy(lengths,error_v2(i,:),'Color',cmap(i,:),'LineStyle','--','Marker','o','Markersize',1)
-        %         end
-        %         hold off
-        %         title('Error from theoretical results')
-        %         legend('Ver 1','Ver 2')
-        %         xlabel('samples')
-        %         ylabel('MSE')
-        %         grid on
-        %
-        %         figure(2)
-        %         semilogy(lengths,error_v12,'-o','Markersize',1)
-        %         title('Ver 1 VS Ver 2 - Number of eigenvalues')
-        %         legend(num2cell(num2str((1:N_tot).')))
-        %         xlabel('samples')
-        %         ylabel('MSE')
-        %         grid on
-        %
-        %         figure(3)
-        %         semilogy(lengths,error_v1./error_v2,'-o','Markersize',1)
-        %         title('Ver 1 VS Ver 2 - Error ratio')
-        %         legend(num2cell(num2str((1:N_tot).')))
-        %         xlabel('samples')
-        %         ylabel('MSE ratio')
-        %         grid on
-        %
-        %         % reset robolog
-        %         setpref('roboLog', 'logLevel', 5)
-        
-        
         %% Test 4: Compare results of both algorithms against theoretical results
         % with N eignevalues (may take long)
         warning off
@@ -469,7 +337,7 @@ switch testType
             %discreteSpectrum_TOT = -1i;
             N_tot = min(N_max_eigs,numel(discreteEigenvalues_TOT));
             
-            error_v1 = zeros(N_tot,length(Nss));
+            %error_v1 = zeros(N_tot,length(Nss));
             error_v2 = zeros(N_tot,length(Nss));
             error_v12 = zeros(N_tot,length(Nss));
             error_v1_inter = zeros(N_tot,length(Nss));
@@ -509,7 +377,7 @@ switch testType
                     % THEORY
                     inft = DiscreteINFT_v1(param.INFT);
                     inft.normalizationParameters(const.c/Fc);
-
+                    
                     lambdas = @(r,z) sqrt(c(r)).*exp(1i.*zeta(r).*z); % index (j/k, time)
                     a = @(x,y,z) lambdas(x,z).*conj(lambdas(y,z))./(zeta(x)-conj(zeta(y))); % index (j,k,time)
                     b = @(x,y,z) conj(lambdas(x,z)).*lambdas(y,z)./(conj(zeta(x))-zeta(y));
@@ -558,8 +426,10 @@ switch testType
                     %inft = DiscreteINFT_v1(param.INFT);
                     sigDarb_v1 = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
                     % interpolate_v1 (add a sample at the end since upsampled time is 2N-1)
-                    x_tmp = interp1(t,get(sigDarb_v1).',linspace(T1,T2,Nss(i)*2-1));
-                    x_int = [x_tmp(2:2:end),x_tmp(end)];
+                    %   x_tmp = interp1(t,get(sigDarb_v1).',linspace(T1,T2,Nss(i)*2-1),'Spline');
+                    %   x_int = [x_tmp(2:2:end),x_tmp(end)];
+                    x = get(sigDarb_v1);
+                    x_int = (x+[x(2:end);x(end)])./2;
                     sigDarb_v1_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
                     
                     % ALGORITHM 2
@@ -571,21 +441,24 @@ switch testType
                     %inft = DiscreteINFT_v1(param.INFT);
                     sigDarb_v2 = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
                     % interpolate_v1 (see up for definition)
-                    x_tmp = interp1(t,get(sigDarb_v2).',linspace(T1,T2,Nss(i)*2-1));
-                    x_int = [x_tmp(2:2:end),x_tmp(end)];
+                    %   x_tmp = interp1(t,get(sigDarb_v2).',linspace(T1,T2,Nss(i)*2-1),'Spline');
+                    %   x_int = [x_tmp(2:2:end),x_tmp(end)];
+                    x = get(sigDarb_v2);
+                    x_int = (x+[x(2:end);x(end)])./2;
                     sigDarb_v2_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
-
+                    
                     error_v1(n,i) = mean(abs(get(sig) - get(sigDarb_v1)).^2); % MSE
                     error_v2(n,i) = mean(abs(get(sig) - get(sigDarb_v2)).^2);
                     error_v1_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v1_inter)).^2);
                     error_v2_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v2_inter)).^2);
                     error_v12(n,i) = mean(abs(get(sigDarb_v1) - get(sigDarb_v2)).^2);
                     %figure;plot(linspace(T1,T2,Nss(i)*2-1),real(x_tmp),'g--o',t,real(get(sigDarb_v2_inter)),'y-o',t,imag(get(sigDarb_v2_inter)),'y--o',t,real(get(sigDarb_v1_inter)),'r-o',t,imag(get(sigDarb_v1_inter)),'r--o',t,real(get(sigDarb_v2)),'b-o',t,imag(get(sigDarb_v2)),'b--o',t,real(get(sig)),'k-o',t,imag(get(sig)),'k--o');grid on
+                    %figure;plot(t,real(get(sigDarb_v2_inter)),'y-o',t,imag(get(sigDarb_v2_inter)),'y--o',t,real(get(sigDarb_v1_inter)),'r-o',t,imag(get(sigDarb_v1_inter)),'r--o',t,real(get(sigDarb_v2)),'b-o',t,imag(get(sigDarb_v2)),'b--o',t,real(get(sig)),'k-o',t,imag(get(sig)),'k--o');grid on
                     clear param inft
                     
                 end
             end
-            error_v1_average(average,:,:) = error_v1; 
+            error_v1_average(average,:,:) = error_v1;
             error_v2_average(average,:,:) = error_v2;
             error_v1_average_inter(average,:,:) = error_v1_inter;
             error_v2_average_inter(average,:,:) = error_v2_inter;
@@ -602,7 +475,7 @@ switch testType
         error_v1_inter_var = squeeze(var(error_v1_average_inter,1));
         error_v2_inter_var = squeeze(var(error_v2_average_inter,1));
         
-        save workspace_errors_potato.mat
+        save workspace_errors_Spline.mat
         
         %% figures
         figure(1)
@@ -659,13 +532,13 @@ switch testType
         ylabel('E[MSE] ratio')
         grid on
         
-%         figure(5)
-%         plot(Nss,error_v1_inter./error_v2_inter,'-o','Markersize',1)
-%         title('Ver 1 VS Ver 2 - Error ratio')
-%         legend(num2cell(num2str((1:N_tot).')))
-%         xlabel('samples')
-%         ylabel('E[MSE] ratio')
-%         grid on
+        %         figure(5)
+        %         plot(Nss,error_v1_inter./error_v2_inter,'-o','Markersize',1)
+        %         title('Ver 1 VS Ver 2 - Error ratio')
+        %         legend(num2cell(num2str((1:N_tot).')))
+        %         xlabel('samples')
+        %         ylabel('E[MSE] ratio')
+        %         grid on
         
         % reset robolog
         setpref('roboLog', 'logLevel', 5)
