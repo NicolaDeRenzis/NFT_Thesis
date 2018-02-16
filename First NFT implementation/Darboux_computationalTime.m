@@ -8,7 +8,7 @@ close all
 Fs = 1e12;
 Fc = 193.4e12;
 
-testType = 1;
+testType = 4;
 % Test 1: Compare computational time. Generate a N-Solition from a given spectrum. A N-soliton has N eigenvalue on the imaginary axis.
 % Test 2: Compare precision darboux VS darboux_simplified. Generate a N-Solition from a given spectrum. A N-soliton has N eigenvalue on the imaginary axis.
 % Test 3: Compare results of both algorithms against theoretical results
@@ -131,23 +131,23 @@ switch testType
         ylabel('Computational time ratio')
         legend(s)
         
-%         figure(4)
-%         clear s
-%         hold on
-%         for i=1:N_eigs
-%             plot(K,squeeze(time(1,:,i))./squeeze(time(2,:,i)),'-o')
-%             %s{i} = sprintf('samples = %s^{%d}','2',log2(K(i)));
-%             s{i} = sprintf('N = %d',i);
-%         end
-%         plot(K,ones(1,length(K)),'k--')
-%         hold off
-%         grid on
-%         title('Computational time ratio Alg2 / Alg2_interp')
-%         ylim([0.8 max(max(time(1,:,:)./time(2,:,:)))+0.1])
-%         xlabel('Number of samples')
-%         ylabel('Computational time ratio')
-%         legend(s)
-%         
+        %         figure(4)
+        %         clear s
+        %         hold on
+        %         for i=1:N_eigs
+        %             plot(K,squeeze(time(1,:,i))./squeeze(time(2,:,i)),'-o')
+        %             %s{i} = sprintf('samples = %s^{%d}','2',log2(K(i)));
+        %             s{i} = sprintf('N = %d',i);
+        %         end
+        %         plot(K,ones(1,length(K)),'k--')
+        %         hold off
+        %         grid on
+        %         title('Computational time ratio Alg2 / Alg2_interp')
+        %         ylim([0.8 max(max(time(1,:,:)./time(2,:,:)))+0.1])
+        %         xlabel('Number of samples')
+        %         ylabel('Computational time ratio')
+        %         legend(s)
+        %
         setpref('roboLog', 'logLevel', 5)
     case 2
         %% Test 2: Generate a N-Solition from a given spectrum
@@ -428,9 +428,9 @@ switch testType
                     % interpolate_v1 (add a sample at the end since upsampled time is 2N-1)
                     %   x_tmp = interp1(t,get(sigDarb_v1).',linspace(T1,T2,Nss(i)*2-1),'Spline');
                     %   x_int = [x_tmp(2:2:end),x_tmp(end)];
-                    x = get(sigDarb_v1);
-                    x_int = (x+[x(2:end);x(end)])./2;
-                    sigDarb_v1_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
+                    %x = get(sigDarb_v1);
+                    %x_int = (x+[x(2:end);x(end)])./2;
+                    %sigDarb_v1_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
                     
                     % ALGORITHM 2
                     param.INFT.method = 'darboux_simplified';
@@ -443,39 +443,39 @@ switch testType
                     % interpolate_v1 (see up for definition)
                     %   x_tmp = interp1(t,get(sigDarb_v2).',linspace(T1,T2,Nss(i)*2-1),'Spline');
                     %   x_int = [x_tmp(2:2:end),x_tmp(end)];
-                    x = get(sigDarb_v2);
-                    x_int = (x+[x(2:end);x(end)])./2;
-                    sigDarb_v2_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
+                    %x = get(sigDarb_v2);
+                    %x_int = (x+[x(2:end);x(end)])./2;
+                    %sigDarb_v2_inter = signal_interface(x_int, struct('Rs', Rs, 'Fs', Fs, 'Fc', Fc));
                     
-                    error_v1(n,i) = mean(abs(get(sig) - get(sigDarb_v1)).^2); % MSE
-                    error_v2(n,i) = mean(abs(get(sig) - get(sigDarb_v2)).^2);
-                    error_v1_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v1_inter)).^2);
-                    error_v2_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v2_inter)).^2);
+                    error_v1(n,i) = mean(abs(get(sig) - get(sigDarb_v1)).^2) / mean(abs(get(sig)).^2); % NMSE: normalized MSE
+                    error_v2(n,i) = mean(abs(get(sig) - get(sigDarb_v2)).^2) / mean(abs(get(sig)).^2);
+                    %error_v1_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v1_inter)).^2);
+                    %error_v2_inter(n,i) = mean(abs(get(sig) - get(sigDarb_v2_inter)).^2);
                     error_v12(n,i) = mean(abs(get(sigDarb_v1) - get(sigDarb_v2)).^2);
                     %figure;plot(linspace(T1,T2,Nss(i)*2-1),real(x_tmp),'g--o',t,real(get(sigDarb_v2_inter)),'y-o',t,imag(get(sigDarb_v2_inter)),'y--o',t,real(get(sigDarb_v1_inter)),'r-o',t,imag(get(sigDarb_v1_inter)),'r--o',t,real(get(sigDarb_v2)),'b-o',t,imag(get(sigDarb_v2)),'b--o',t,real(get(sig)),'k-o',t,imag(get(sig)),'k--o');grid on
-                    %figure;plot(t,real(get(sigDarb_v2_inter)),'y-o',t,imag(get(sigDarb_v2_inter)),'y--o',t,real(get(sigDarb_v1_inter)),'r-o',t,imag(get(sigDarb_v1_inter)),'r--o',t,real(get(sigDarb_v2)),'b-o',t,imag(get(sigDarb_v2)),'b--o',t,real(get(sig)),'k-o',t,imag(get(sig)),'k--o');grid on
+                    %figure;plot(t,real(get(sigDarb_v1)),'r-o',t,imag(get(sigDarb_v1)),'r--o',t,real(get(sigDarb_v2)),'b-o',t,imag(get(sigDarb_v2)),'b--o',t,real(get(sig)),'k-o',t,imag(get(sig)),'k--o');grid on
                     clear param inft
                     
                 end
             end
             error_v1_average(average,:,:) = error_v1;
             error_v2_average(average,:,:) = error_v2;
-            error_v1_average_inter(average,:,:) = error_v1_inter;
-            error_v2_average_inter(average,:,:) = error_v2_inter;
+            %error_v1_average_inter(average,:,:) = error_v1_inter;
+            %error_v2_average_inter(average,:,:) = error_v2_inter;
             error_v12_average(average,:,:) = error_v12;
         end
         error_v1 = squeeze(mean(error_v1_average,1)); % E[MSE]
         error_v2 = squeeze(mean(error_v2_average,1));
         error_v12 = squeeze(mean(error_v12_average,1));
-        error_v1_inter = squeeze(mean(error_v1_average_inter,1));
-        error_v2_inter = squeeze(mean(error_v2_average_inter,1));
+        %error_v1_inter = squeeze(mean(error_v1_average_inter,1));
+        %error_v2_inter = squeeze(mean(error_v2_average_inter,1));
         error_v1_var = squeeze(var(error_v1_average,1)); % Var[MSE]
         error_v2_var = squeeze(var(error_v2_average,1));
         error_v12_var = squeeze(var(error_v12_average,1));
-        error_v1_inter_var = squeeze(var(error_v1_average_inter,1));
-        error_v2_inter_var = squeeze(var(error_v2_average_inter,1));
+        %error_v1_inter_var = squeeze(var(error_v1_average_inter,1));
+        %error_v2_inter_var = squeeze(var(error_v2_average_inter,1));
         
-        save workspace_errors_Spline.mat
+        save workspace_errors_bugFix.mat
         
         %% figures
         figure(1)
@@ -489,22 +489,22 @@ switch testType
         title('Error from theoretical results')
         legend('Ver 1','Ver 2')
         xlabel('samples')
-        ylabel('E[MSE]')
+        ylabel('E[NMSE]')
         grid on
         
-        figure(2)
-        cmap = colormap(parula(N_tot+2));
-        for i=1:N_tot
-            semilogy(Nss,error_v1_inter(i,:),'Color',cmap(i,:),'Marker','o','Markersize',1)
-            hold on
-            semilogy(Nss,error_v2_inter(i,:),'Color',cmap(i,:),'LineStyle','--','Marker','o','Markersize',1)
-        end
-        hold off
-        title('Error from theoretical results - Interpolated')
-        legend('Ver 1','Ver 2')
-        xlabel('samples')
-        ylabel('E[MSE]')
-        grid on
+        %         figure(2)
+        %         cmap = colormap(parula(N_tot+2));
+        %         for i=1:N_tot
+        %             semilogy(Nss,error_v1_inter(i,:),'Color',cmap(i,:),'Marker','o','Markersize',1)
+        %             hold on
+        %             semilogy(Nss,error_v2_inter(i,:),'Color',cmap(i,:),'LineStyle','--','Marker','o','Markersize',1)
+        %         end
+        %         hold off
+        %         title('Error from theoretical results - Interpolated')
+        %         legend('Ver 1','Ver 2')
+        %         xlabel('samples')
+        %         ylabel('E[NMSE]')
+        %         grid on
         
         figure(3)
         semilogy(Nss,error_v12,'-o','Markersize',1)
@@ -514,31 +514,31 @@ switch testType
         ylabel('E[MSE]')
         grid on
         
-        figure(4)
-        c=1;
-        for i=1:2:N_tot
-            h=plot(Nss(1:2:end),error_v2(i,1:2:end)./error_v2_inter(i,1:2:end),'-o','Markersize',1);
-            hold on
-            plot(Nss(2:2:end),error_v2(i,2:2:end)./error_v2_inter(i,2:2:end),'Color',h.Color,'LineStyle','--','Marker','o','Markersize',1)
-            s{c} = sprintf('K even, N = %d',i);
-            c=c+1;
-            s{c} = sprintf('K odd, N = %d',i);
-            c=c+1;
-        end
-        hold off
-        title('Not Interp VS Interp - Error ratio')
-        legend(s)
-        xlabel('samples')
-        ylabel('E[MSE] ratio')
-        grid on
-        
-        %         figure(5)
-        %         plot(Nss,error_v1_inter./error_v2_inter,'-o','Markersize',1)
-        %         title('Ver 1 VS Ver 2 - Error ratio')
-        %         legend(num2cell(num2str((1:N_tot).')))
+        %         figure(4)
+        %         c=1;
+        %         for i=1:2:N_tot
+        %             h=plot(Nss(1:2:end),error_v2(i,1:2:end)./error_v2_inter(i,1:2:end),'-o','Markersize',1);
+        %             hold on
+        %             plot(Nss(2:2:end),error_v2(i,2:2:end)./error_v2_inter(i,2:2:end),'Color',h.Color,'LineStyle','--','Marker','o','Markersize',1)
+        %             s{c} = sprintf('K even, N = %d',i);
+        %             c=c+1;
+        %             s{c} = sprintf('K odd, N = %d',i);
+        %             c=c+1;
+        %         end
+        %         hold off
+        %         title('Not Interp VS Interp - Error ratio')
+        %         legend(s)
         %         xlabel('samples')
         %         ylabel('E[MSE] ratio')
         %         grid on
+        
+        figure(5)
+        plot(Nss,error_v2./error_v1,'-o','Markersize',1)
+        title('Ver 1 VS Ver 2 - Error ratio')
+        legend(num2cell(num2str((1:N_tot).')))
+        xlabel('samples')
+        ylabel('E[NMSE] ratio')
+        grid on
         
         % reset robolog
         setpref('roboLog', 'logLevel', 5)
