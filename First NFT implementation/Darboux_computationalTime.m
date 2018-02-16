@@ -323,7 +323,7 @@ switch testType
         N_average = 200;
         N_max_eigs = 6;
         
-        Nss = 40:1:150;
+        Nss = 400:11:1500;
         ratio_Tn = 0.05;
         T1 = -50*1e-12;
         T2 = -T1;
@@ -475,7 +475,7 @@ switch testType
         %error_v1_inter_var = squeeze(var(error_v1_average_inter,1));
         %error_v2_inter_var = squeeze(var(error_v2_average_inter,1));
         
-        save workspace_errors_bugFix.mat
+        save workspace_errors_bugFix_bigSamples.mat
         
         %% figures
         figure(1)
@@ -532,13 +532,13 @@ switch testType
         %         ylabel('E[MSE] ratio')
         %         grid on
         
-        figure(5)
-        plot(Nss,error_v2./error_v1,'-o','Markersize',1)
-        title('Ver 1 VS Ver 2 - Error ratio')
-        legend(num2cell(num2str((1:N_tot).')))
-        xlabel('samples')
-        ylabel('E[NMSE] ratio')
-        grid on
+%         figure(5)
+%         semilogy(Nss,error_v2./error_v1,'-o','Markersize',1)
+%         title('Ver 1 VS Ver 2 - Error ratio')
+%         legend(num2cell(num2str((1:N_tot).')))
+%         xlabel('samples')
+%         ylabel('E[NMSE] ratio')
+%         grid on
         
         % reset robolog
         setpref('roboLog', 'logLevel', 5)
