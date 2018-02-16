@@ -14,7 +14,7 @@ realization = 1e2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
-discreteEigenvalues = [0.5i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
+discreteEigenvalues = [2*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
 discreteSpectrum = [-1i];
 N = numel(discreteEigenvalues);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
@@ -60,6 +60,7 @@ param.NFT.returnNFTParameterB = param.INFT.setNFTParameterB;
 inft = DiscreteINFT_v1(param.INFT);
 sigDarb = inft.traverse(discreteEigenvalues(1:N), discreteSpectrum(1:N), Rs);
 
+spurious_counter = 1;
 nft_out = NFT_v8(param.NFT);
 timeout = 10;
 
@@ -112,18 +113,23 @@ for noise_index = 1:numel(osnr_cycle)
         % order reults
         tmp_eigs = nft_out.discreteEigenvalues();
         tmp_amp = nft_out.discreteSpectrum();
-        [~,index] = sort(real(tmp_eigs));
-        tmp_eigs = tmp_eigs(index);
-        tmp_amp = tmp_amp(index);
-        [~,index] = sort(imag(tmp_eigs));
-        tmp_eigs = tmp_eigs(index);
-        tmp_amp = tmp_amp(index);
+        [tmp_eigs,tmp_amp] = classifier_supervised(tmp_eigs,tmp_amp,discreteEigenvalues(1:N), discreteSpectrum(1:N));
+        
+%         [~,index] = sort(real(tmp_eigs));
+%         tmp_eigs = tmp_eigs(index);
+%         tmp_amp = tmp_amp(index);
+%         [~,index] = sort(imag(tmp_eigs));
+%         tmp_eigs = tmp_eigs(index);
+%         tmp_amp = tmp_amp(index);
         
         % remember in which iteration a spurious eigenvalue was found
         if length(tmp_eigs)>N
-            spurious{noise_index,n}.more =  length(tmp_eigs)-N;
-            spurious{noise_index,n}.eigs = tmp_eigs;
-            spurious{noise_index,n}.amp = tmp_amp;
+            spurious{spurious_counter}.more =  length(tmp_eigs)-N;
+            spurious{spurious_counter}.eigs = tmp_eigs;
+            spurious{spurious_counter}.amp = tmp_amp;
+            spurious{spurious_counter}.E = E;
+            spurious{spurious_counter}.OSNR = osnr_cycle(noise_index);
+            spurious_counter = spurious_counter+1;
         end
         
         egDb(n,:) = [tmp_eigs,zeros(1,N_padding-length(tmp_eigs))]; %egDb
@@ -161,6 +167,8 @@ for noise_index = 1:numel(osnr_cycle)
     %plotNFTConstellation_v1(egDb, dsDb , 'refEigenvalues', discreteEigenvalues, 'refSpectrum', discreteSpectrum);
     mean_errorEigs(noise_index,:) = mean(egDb-discreteEigenvalues,1);
     mean_errorAmpl(noise_index,:) = mean(dsDb-discreteSpectrum,1);
+    mean_errorEigs_normal(noise_index,:) = abs(mean(egDb,1)./discreteEigenvalues);
+    mean_errorAmpl_normal(noise_index,:) = abs(mean(dsDb,1)./discreteSpectrum);
     
     var_errorEigs(noise_index,:) = var(egDb,1);
     var_errorAmpl(noise_index,:) = var(dsDb,1);
