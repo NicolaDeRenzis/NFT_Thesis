@@ -14,10 +14,16 @@ realization = 1e2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
-discreteEigenvalues = [0.5i 1.5*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
-discreteSpectrum = [-1i 1i];
-
+discreteEigenvalues = [0.5i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
+discreteSpectrum = [-1i];
+N = numel(discreteEigenvalues);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
+
+N_padding = 20;
+discreteEigenvalues = [discreteEigenvalues,zeros(1,N_padding-N)];
+discreteSpectrum = [discreteSpectrum,zeros(1,N_padding-N)];
+egDb = zeros(realization,N_padding);
+dsDb = zeros(realization,N_padding);
 
 nPoints = 2^10; % minimum 2048smart
 Rs = Fs/nPoints;
@@ -41,8 +47,8 @@ param.NFT.tolUniqueEigenvalue = 0.05; % sensibility to locating the same eigenva
 param.NFT.tolAllEigenvaluesFound = 0.1; % energy threshold to fulfill for terminating the eigs search
 param.NFT.computeDiscreteSpectrumEnabled = 1;
 param.NFT.computeContinuousSpectrumEnabled = 1;
-param.NFT.complexPlaneSearchArea = 3 * (max(1, max(real(discreteEigenvalues))) + ...
-    1i*max(imag(discreteEigenvalues)));
+param.NFT.complexPlaneSearchArea = 3 * (max(1, max(real(discreteEigenvalues(1:N)))) + ...
+    1i*max(imag(discreteEigenvalues(1:N))));
 param.NFT.mexEnabled = 1;
 param.NFT.returnNFTParameterB = param.INFT.setNFTParameterB;
 
@@ -52,7 +58,7 @@ param.NFT.returnNFTParameterB = param.INFT.setNFTParameterB;
 
 % Compute waveform with Darboux transform
 inft = DiscreteINFT_v1(param.INFT);
-sigDarb = inft.traverse(discreteEigenvalues, discreteSpectrum, Rs);
+sigDarb = inft.traverse(discreteEigenvalues(1:N), discreteSpectrum(1:N), Rs);
 
 nft_out = NFT_v8(param.NFT);
 timeout = 10;
@@ -87,7 +93,7 @@ for noise_index = 1:numel(osnr_cycle)
                 
                 toten = (E.Ec+E.Ed)./E_sigNoise(n);
                 check=nft_out.discreteEigenvalues();
-                if numel(discreteEigenvalues)>1 % only if there are more than 1 eigenvalue
+                if N>1 % only if there are more than 1 eigenvalue
                     if (~any(gradient(check)) || counter+1>timeout) && ~(toten<0.8 || toten>1.001) % check if toten condition is already not fulfilled
                         flag=1;
                         counter=1e16;
@@ -95,9 +101,10 @@ for noise_index = 1:numel(osnr_cycle)
                         counter = counter+1;
                         flag=0;
                     end
+                else
+                    counter = counter+1;
                 end
-            end
-            
+            end 
         end
         flag_start = 1;
         
@@ -112,8 +119,15 @@ for noise_index = 1:numel(osnr_cycle)
         tmp_eigs = tmp_eigs(index);
         tmp_amp = tmp_amp(index);
         
-        egDb(n,:) = tmp_eigs; %egDb
-        dsDb(n,:) = tmp_amp; %dsDb
+        % remember in which iteration a spurious eigenvalue was found
+        if length(tmp_eigs)>N
+            spurious{noise_index,n}.more =  length(tmp_eigs)-N;
+            spurious{noise_index,n}.eigs = tmp_eigs;
+            spurious{noise_index,n}.amp = tmp_amp;
+        end
+        
+        egDb(n,:) = [tmp_eigs,zeros(1,N_padding-length(tmp_eigs))]; %egDb
+        dsDb(n,:) = [tmp_amp,zeros(1,N_padding-length(tmp_amp))]; %dsDb
         
     end
     store_sigNoise{noise_index} = tmp{noise_index,1};
