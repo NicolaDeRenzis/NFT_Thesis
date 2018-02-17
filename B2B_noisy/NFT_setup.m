@@ -1,25 +1,25 @@
-clearall
+%clearall
+%clc
 close all
-clc
 robolog off
 
 Fs = 1e12;
 Fc = 193.4e12;
 
 osnr_cycle = 42:-4:14;
-realization = 1e2;
+realization = 1e3;
 
 
 %% Generate a waveform from a given spectrum
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
-discreteEigenvalues = [2*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
+%discreteEigenvalues = [1*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
 discreteSpectrum = [-1i];
 N = numel(discreteEigenvalues);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
 
-N_padding = 20;
+N_padding = 10;
 discreteEigenvalues = [discreteEigenvalues,zeros(1,N_padding-N)];
 discreteSpectrum = [discreteSpectrum,zeros(1,N_padding-N)];
 egDb = zeros(realization,N_padding);
@@ -115,13 +115,6 @@ for noise_index = 1:numel(osnr_cycle)
         tmp_amp = nft_out.discreteSpectrum();
         [tmp_eigs,tmp_amp] = classifier_supervised(tmp_eigs,tmp_amp,discreteEigenvalues(1:N), discreteSpectrum(1:N));
         
-%         [~,index] = sort(real(tmp_eigs));
-%         tmp_eigs = tmp_eigs(index);
-%         tmp_amp = tmp_amp(index);
-%         [~,index] = sort(imag(tmp_eigs));
-%         tmp_eigs = tmp_eigs(index);
-%         tmp_amp = tmp_amp(index);
-        
         % remember in which iteration a spurious eigenvalue was found
         if length(tmp_eigs)>N
             spurious{spurious_counter}.more =  length(tmp_eigs)-N;
@@ -167,11 +160,18 @@ for noise_index = 1:numel(osnr_cycle)
     %plotNFTConstellation_v1(egDb, dsDb , 'refEigenvalues', discreteEigenvalues, 'refSpectrum', discreteSpectrum);
     mean_errorEigs(noise_index,:) = mean(egDb-discreteEigenvalues,1);
     mean_errorAmpl(noise_index,:) = mean(dsDb-discreteSpectrum,1);
-    mean_errorEigs_normal(noise_index,:) = abs(mean(egDb,1)./discreteEigenvalues);
-    mean_errorAmpl_normal(noise_index,:) = abs(mean(dsDb,1)./discreteSpectrum);
+    %mean_errorEigs_normal(noise_index,:) = abs(mean(egDb-discreteEigenvalues,1)./discreteEigenvalues);
+    %mean_errorAmpl_normal(noise_index,:) = abs(mean(dsDb-discreteSpectrum,1)./discreteSpectrum);
     
     var_errorEigs(noise_index,:) = var(egDb,1);
     var_errorAmpl(noise_index,:) = var(dsDb,1);
+    
+    store{noise_index}.eigs = egDb;
+    store{noise_index}.ampl = dsDb;
+    store{noise_index}.osnr = osnr_cycle(noise_index);
+    store{noise_index}.eigs_original = discreteEigenvalues(1:N);
+    store{noise_index}.ampl_original = discreteSpectrum(1:N);
+    store{noise_index}.spurious = spurious;
     
 end
 
@@ -226,3 +226,6 @@ xlabel('OSNR [dB]')
 grid on
 
 %}
+
+name = sprintf('store_%drealiz_%2.1fi.mat',realization,imag(discreteEigenvalues(1:N)));
+save(name,'var_errorEigs', 'var_errorAmpl', 'store')
