@@ -8,7 +8,7 @@ Fc = 193.4e12;
 
 osnr_cycle = 18:-4:6;
 %osnr_cycle = 10;
-realization = 0.5*1e3;
+realization = 1*1e3;
 
 trainModel = 0;
 
@@ -74,12 +74,12 @@ param.NFT.returnNFTParameterB = param.INFT.setNFTParameterB;
 spurious_counter = 1;
 flag_spurious = 0;
 nft_out = NFT_v8(param.NFT);
-timeout = 20;
+timeout = 10;
 totenMin = 0.8;
 %%%%%%%%%%% INIT EMPTY VECTORS %%%%%%%%%%%%%
 constSent = zeros(realization,D);
 currentDiscreteSpectrum = zeros(realization,D);
-counter_onlyOneFound = 0;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 for noise_index = 1:numel(osnr_cycle)
@@ -89,6 +89,8 @@ for noise_index = 1:numel(osnr_cycle)
     osnr = OSNR_v1(param.OSNR);
     flag_start = 1;
     flag = 0;
+    counter_onlyOneFound = 0;
+    iter_onylOne = [];
     
     for n=1:realization % realizations
         
@@ -149,6 +151,7 @@ for noise_index = 1:numel(osnr_cycle)
            tmp_eigs = [tmp_eigs,tmp_eigs];
            tmp_amp = [tmp_amp,tmp_amp];
            counter_onlyOneFound = counter_onlyOneFound+1;
+           iter_onylOne(counter_onlyOneFound+1) = n;
         end
         
         [label_tmp,loglike] = model_SVM_Linear.predictFcn([real(tmp_eigs);imag(tmp_eigs)].');
@@ -245,6 +248,10 @@ for noise_index = 1:numel(osnr_cycle)
     SER(noise_index) = sum(length(find(error_mat)))/N/realization;
     store{noise_index}.error_mat = constRec - constSent;
     store{noise_index}.SER =  SER(noise_index);
+    oneFoundCounter(noise_index) = counter_onlyOneFound;
+    SER_woOneEigFound(noise_index) =...
+        (sum(length(find(error_mat(setdiff(positions,iter_onylOne))))))/...
+        (N*(realization-counter_onlyOneFound));
 end
 
 %%{
@@ -302,6 +309,6 @@ grid on
 
 %}
 
-name = sprintf('store_%drealiz_%2.1fi_QPSK.mat',realization,imag(discreteEigenvalues(N)));
+name = sprintf('BPSK_%drealiz_%2.1fi.mat',realization,imag(discreteEigenvalues(N)));
 save(name, 'store')
 clear name
