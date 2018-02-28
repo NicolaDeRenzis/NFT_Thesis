@@ -1,5 +1,5 @@
-%clearall
-%clc
+clearall
+clc
 close all
 robolog off
 
@@ -7,15 +7,16 @@ Fs = 1e12;
 Fc = 193.4e12;
 
 osnr_cycle = 42:-4:14;
-realization = 1e3;
+realization = 1*1e3;
 
+usemodel = 0;
 
 %% Generate a waveform from a given spectrum
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% TUNE PARAM %%%%%%%%%%%%%%%%%%%%%
 % Set the spectrum here
-%discreteEigenvalues = [1*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
-discreteSpectrum = [-1i];
+discreteEigenvalues = [0.5*1i 1.5*1i]; % ordered by increasing both imaginary and real part (one after the other: [-1-1i, 1-1i, -1+1i, 1+1i])
+discreteSpectrum = [-1i 1i];
 N = numel(discreteEigenvalues);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% END PARAM %%%%%%%%%%%%%%%%%%%%%
 
@@ -25,7 +26,7 @@ discreteSpectrum = [discreteSpectrum,zeros(1,N_padding-N)];
 egDb = zeros(realization,N_padding);
 dsDb = zeros(realization,N_padding);
 
-nPoints = 2^10; % minimum 2048smart
+nPoints = 2^10; % minimum 2048
 Rs = Fs/nPoints;
 
 %INFT parameters
@@ -61,6 +62,7 @@ inft = DiscreteINFT_v1(param.INFT);
 sigDarb = inft.traverse(discreteEigenvalues(1:N), discreteSpectrum(1:N), Rs);
 
 spurious_counter = 1;
+flag_spurious = 0;
 nft_out = NFT_v8(param.NFT);
 timeout = 10;
 
@@ -115,14 +117,21 @@ for noise_index = 1:numel(osnr_cycle)
         tmp_amp = nft_out.discreteSpectrum();
         [tmp_eigs,tmp_amp] = classifier_supervised(tmp_eigs,tmp_amp,discreteEigenvalues(1:N), discreteSpectrum(1:N));
         
+        if usemodel
+            load model1.mat
+            out = trainedModel.predictFcn([]);
+        end
+        
+        
         % remember in which iteration a spurious eigenvalue was found
         if length(tmp_eigs)>N
-            spurious{spurious_counter}.more =  length(tmp_eigs)-N;
+            spurious{spurious_counter}.more = length(tmp_eigs)-N;
             spurious{spurious_counter}.eigs = tmp_eigs;
             spurious{spurious_counter}.amp = tmp_amp;
             spurious{spurious_counter}.E = E;
             spurious{spurious_counter}.OSNR = osnr_cycle(noise_index);
             spurious_counter = spurious_counter+1;
+            flag_spurious = 1;
         end
         
         egDb(n,:) = [tmp_eigs,zeros(1,N_padding-length(tmp_eigs))]; %egDb
@@ -171,7 +180,9 @@ for noise_index = 1:numel(osnr_cycle)
     store{noise_index}.osnr = osnr_cycle(noise_index);
     store{noise_index}.eigs_original = discreteEigenvalues(1:N);
     store{noise_index}.ampl_original = discreteSpectrum(1:N);
-    store{noise_index}.spurious = spurious;
+    if flag_spurious
+        store{noise_index}.spurious = spurious;
+    end
     
 end
 
@@ -227,5 +238,6 @@ grid on
 
 %}
 
-name = sprintf('store_%drealiz_%2.1fi.mat',realization,imag(discreteEigenvalues(1:N)));
+name = sprintf('store_%drealiz_%2.1fi_2.mat',realization,imag(discreteEigenvalues(N)));
 save(name,'var_errorEigs', 'var_errorAmpl', 'store')
+clear name
